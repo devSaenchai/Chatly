@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chatly v2</title>
+<title>Chatly Pro</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 
@@ -57,7 +57,7 @@ from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
 getDatabase,ref,set,push,
 onValue,onChildAdded,
-update,onDisconnect,serverTimestamp
+update,onDisconnect
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
@@ -74,6 +74,16 @@ appId:"1:632092552334:web:b1390de09936da2516eddf"
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
+/* GET ELEMENTS */
+const setup=document.getElementById("setup");
+const nameInput=document.getElementById("nameInput");
+const home=document.getElementById("home");
+const chatScreen=document.getElementById("chatScreen");
+const header=document.getElementById("header");
+const chat=document.getElementById("chat");
+const typing=document.getElementById("typing");
+const msg=document.getElementById("msg");
+
 let profile=JSON.parse(localStorage.getItem("chatlyUser"));
 let currentUser=null;
 
@@ -83,25 +93,30 @@ setPresence();
 loadChats();
 }
 
+/* PROFILE */
+window.saveProfile=()=>{
+const name=nameInput.value.trim();
+if(!name)return alert("Enter username");
+
+profile={name};
+localStorage.setItem("chatlyUser",JSON.stringify(profile));
+
+set(ref(db,"users/"+name),profile)
+.then(()=>{
+setup.style.display="none";
+setPresence();
+loadChats();
+});
+};
+
+/* ONLINE STATUS */
 function setPresence(){
 const statusRef=ref(db,"status/"+profile.name);
-
 set(statusRef,{online:true});
 onDisconnect(statusRef).set({online:false});
 }
 
-/* PROFILE */
-window.saveProfile=()=>{
-let name=nameInput.value.trim();
-if(!name)return;
-
-profile={name};
-localStorage.setItem("chatlyUser",JSON.stringify(profile));
-set(ref(db,"users/"+name),profile);
-location.reload();
-};
-
-/* LOAD CHAT LIST */
+/* LOAD USERS */
 function loadChats(){
 onValue(ref(db,"users"),snap=>{
 home.innerHTML="";
@@ -128,7 +143,6 @@ div.innerHTML=`
 </div>
 <div class="text-sm opacity-60">${lastMsg}</div>
 `;
-
 });
 });
 
@@ -194,7 +208,7 @@ s.val()?user.name+" typing...":"";
 /* SEND */
 window.send=()=>{
 let text=msg.value.trim();
-if(!text)return;
+if(!text||!currentUser)return;
 
 let chatId=[profile.name,currentUser.name]
 .sort().join("_");
@@ -214,14 +228,17 @@ time:Date.now()
 msg.value="";
 };
 
-/* typing status */
+/* TYPING */
 msg.addEventListener("input",()=>{
 if(!currentUser)return;
+
 set(ref(db,"typing/"+profile.name),true);
+
 setTimeout(()=>{
 set(ref(db,"typing/"+profile.name),false);
 },1000);
 });
 </script>
+
 </body>
 </html>

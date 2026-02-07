@@ -3,198 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chatly</title>
+<title>Chatly v2</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-body{
-margin:0;
-font-family:system-ui;
-background:#efeae2;
-display:flex;
-flex-direction:column;
-height:100vh;
-}
-
-/* HEADER */
-.header{
-background:#075e54;
-color:white;
-padding:10px;
-display:flex;
-align-items:center;
-justify-content:space-between;
-}
-
-.profileMini{
-display:flex;
-align-items:center;
-gap:8px;
-cursor:pointer;
-}
-
-.profileMini img{
-width:32px;
-height:32px;
-border-radius:50%;
-}
-
-/* CHAT */
-#chat{
-flex:1;
-overflow-y:auto;
-padding:10px;
-display:flex;
-flex-direction:column;
-gap:4px;
-scroll-behavior:smooth;
-}
-
-.msg{
-max-width:80%;
-display:flex;
-gap:6px;
-animation:fade .2s ease;
-}
-
-@keyframes fade{
-from{opacity:0;transform:translateY(6px);}
-to{opacity:1;}
-}
-
-.me{align-self:flex-end;flex-direction:row-reverse;}
-.other{align-self:flex-start;}
-
-.avatar{
-width:28px;height:28px;border-radius:50%;
-}
-
-.bubble{
-background:white;
-padding:8px 10px;
-border-radius:10px;
-font-size:14px;
-}
-
-.me .bubble{background:#d9fdd3;}
-
-.meta{
-font-size:11px;
-opacity:.6;
-text-align:right;
-margin-top:2px;
-}
-
-/* INPUT */
-.inputbar{
-display:flex;
-padding:8px;
-background:#f0f2f5;
-gap:6px;
-}
-
-.inputbar input{
-flex:1;
-padding:10px;
-border-radius:20px;
-border:none;
-outline:none;
-}
-
-.inputbar button{
-background:#075e54;
-color:white;
-border:none;
-border-radius:50%;
-padding:10px 14px;
-}
-
-/* POPUPS */
-.popup{
-position:fixed;
-top:0;left:0;width:100%;height:100%;
-background:#0008;
-display:flex;
-justify-content:center;
-align-items:center;
-}
-
-.box{
-background:white;
-padding:20px;
-border-radius:12px;
-width:90%;
-max-width:340px;
-text-align:center;
-}
-
-.box img{
-width:70px;
-height:70px;
-border-radius:50%;
-margin-bottom:10px;
-}
-
-.box input{
-width:100%;
-padding:8px;
-margin-top:6px;
-}
-
-.box button{
-margin-top:10px;
-padding:8px 12px;
-background:#075e54;
-color:white;
-border:none;
-border-radius:6px;
-}
+body{background:#0b141a}
+.msg{max-width:75%}
 </style>
 </head>
 
-<body>
+<body class="h-screen flex flex-col text-white">
 
-<div class="header">
-<div>Chatly</div>
-<div class="profileMini" onclick="openProfile()">
-<img id="miniAvatar">
-<span id="miniName"></span>
+<div id="header" class="bg-[#202c33] p-3 font-semibold">
+Chatly
+</div>
+
+<div id="home" class="flex-1 overflow-y-auto"></div>
+
+<div id="chatScreen" class="hidden flex flex-col flex-1">
+<div id="chat" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+
+<div id="typing" class="text-xs px-3 opacity-70"></div>
+
+<div class="bg-[#202c33] p-2 flex gap-2">
+<input id="msg" class="flex-1 p-2 rounded-full text-black">
+<button onclick="send()" class="bg-[#005c4b] px-4 rounded-full">
+Send
+</button>
 </div>
 </div>
 
-<div id="chat"></div>
+<div id="setup"
+class="fixed inset-0 bg-black/70 flex items-center justify-center">
+<div class="bg-[#202c33] p-6 rounded-xl w-80 space-y-3">
 
-<div class="inputbar">
-<input id="msg" placeholder="Message">
-<button onclick="send()">➤</button>
-</div>
+<input id="nameInput"
+placeholder="Username"
+class="w-full p-2 rounded text-black">
 
-<!-- PROFILE SETUP -->
-<div id="setupPopup" class="popup">
-<div class="box">
-<h3>Welcome to Chatly</h3>
-<img id="previewAvatar" src="https://i.pravatar.cc/150">
-<input id="usernameInput" placeholder="Enter username">
-<input type="file" id="avatarInput">
-<button onclick="saveProfile()">Start Chat</button>
-</div>
-</div>
+<button onclick="saveProfile()"
+class="bg-[#005c4b] w-full p-2 rounded">
+Start
+</button>
 
-<!-- PROFILE EDIT -->
-<div id="editPopup" class="popup" style="display:none">
-<div class="box">
-<h3>Edit Profile</h3>
-<img id="editPreview">
-<input id="editName">
-<input type="file" id="editAvatar">
-<button onclick="updateProfile()">Save</button>
-<button onclick="closeProfile()">Close</button>
 </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded,
-update, query, orderByChild }
+import {initializeApp}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+getDatabase,ref,set,push,
+onValue,onChildAdded,
+update,onDisconnect,serverTimestamp
+}
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig={
@@ -210,77 +74,121 @@ appId:"1:632092552334:web:b1390de09936da2516eddf"
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-let profile=JSON.parse(localStorage.getItem("chatlyProfile"));
+let profile=JSON.parse(localStorage.getItem("chatlyUser"));
+let currentUser=null;
 
 if(profile){
-setupPopup.style.display="none";
-applyProfile();
+setup.style.display="none";
+setPresence();
+loadChats();
 }
 
-function applyProfile(){
-miniName.innerText=profile.name;
-miniAvatar.src=profile.avatar;
+function setPresence(){
+const statusRef=ref(db,"status/"+profile.name);
+
+set(statusRef,{online:true});
+onDisconnect(statusRef).set({online:false});
 }
 
-/* SAVE PROFILE */
+/* PROFILE */
 window.saveProfile=()=>{
-let name=usernameInput.value.trim();
+let name=nameInput.value.trim();
 if(!name)return;
 
-let file=avatarInput.files[0];
-
-if(file){
-let r=new FileReader();
-r.onload=e=>{
-profile={name,avatar:e.target.result};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
+profile={name};
+localStorage.setItem("chatlyUser",JSON.stringify(profile));
+set(ref(db,"users/"+name),profile);
 location.reload();
 };
-r.readAsDataURL(file);
-}else{
-profile={name,avatar:"https://i.pravatar.cc/150?u="+name};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
+
+/* LOAD CHAT LIST */
+function loadChats(){
+onValue(ref(db,"users"),snap=>{
+home.innerHTML="";
+let users=snap.val()||{};
+
+Object.values(users).forEach(u=>{
+if(u.name===profile.name)return;
+
+let div=document.createElement("div");
+div.className=
+"p-3 border-b border-[#2a3942] cursor-pointer hover:bg-[#202c33]";
+
+let chatId=[profile.name,u.name].sort().join("_");
+
+onValue(ref(db,"last/"+chatId),last=>{
+let lastMsg=last.val()?.text||"";
+
+onValue(ref(db,"status/"+u.name),s=>{
+let online=s.val()?.online?"🟢":"⚫";
+
+div.innerHTML=`
+<div class="flex justify-between">
+<div>${u.name} ${online}</div>
+</div>
+<div class="text-sm opacity-60">${lastMsg}</div>
+`;
+
+});
+});
+
+div.onclick=()=>openChat(u);
+home.appendChild(div);
+});
+});
 }
-};
 
-/* EDIT PROFILE */
-window.openProfile=()=>{
-editPopup.style.display="flex";
-editName.value=profile.name;
-editPreview.src=profile.avatar;
-};
+/* OPEN CHAT */
+function openChat(user){
+currentUser=user;
 
-window.closeProfile=()=>{
-editPopup.style.display="none";
-};
+home.classList.add("hidden");
+chatScreen.classList.remove("hidden");
 
-window.updateProfile=()=>{
-let newName=editName.value||profile.name;
-let file=editAvatar.files[0];
+header.innerText=user.name;
+chat.innerHTML="";
 
-if(file){
-let r=new FileReader();
-r.onload=e=>{
-profile={name:newName,avatar:e.target.result};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
-};
-r.readAsDataURL(file);
-}else{
-profile.name=newName;
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
+let chatId=[profile.name,user.name].sort().join("_");
+
+onChildAdded(ref(db,"chats/"+chatId),snap=>{
+let d=snap.val();
+
+if(d.sender!==profile.name){
+update(ref(db,"chats/"+chatId+"/"+snap.key),
+{read:true});
 }
-};
 
-/* TIME FORMAT */
-function formatTime(t){
-let d=new Date(t);
-let h=d.getHours();
-let m=d.getMinutes();
-if(m<10)m="0"+m;
-return h+":"+m;
+let div=document.createElement("div");
+
+div.className=
+"msg p-2 rounded-lg "+
+(d.sender===profile.name
+?"bg-[#005c4b] ml-auto"
+:"bg-[#202c33]");
+
+let ticks=d.sender===profile.name
+?(d.read?"✔✔":"✔")
+:"";
+
+div.innerHTML=`
+${d.text}
+<div class="text-xs opacity-60 text-right">
+${new Date(d.time)
+.toLocaleTimeString([],{
+hour:"2-digit",minute:"2-digit"})}
+${ticks}
+</div>
+`;
+
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
+});
+
+/* typing */
+onValue(ref(db,"typing/"+user.name),s=>{
+typing.innerText=
+s.val()?user.name+" typing...":"";
+});
 }
 
 /* SEND */
@@ -288,9 +196,17 @@ window.send=()=>{
 let text=msg.value.trim();
 if(!text)return;
 
-push(ref(db,"msgs"),{
-name:profile.name,
-avatar:profile.avatar,
+let chatId=[profile.name,currentUser.name]
+.sort().join("_");
+
+push(ref(db,"chats/"+chatId),{
+sender:profile.name,
+text,
+time:Date.now(),
+read:false
+});
+
+set(ref(db,"last/"+chatId),{
 text,
 time:Date.now()
 });
@@ -298,28 +214,14 @@ time:Date.now()
 msg.value="";
 };
 
-/* LOAD MESSAGES */
-const msgQuery=query(ref(db,"msgs"),orderByChild("time"));
-
-onChildAdded(msgQuery,snap=>{
-let d=snap.val();
-
-let div=document.createElement("div");
-div.className="msg "+(d.name===profile.name?"me":"other");
-
-div.innerHTML=`
-<img class="avatar" src="${d.avatar}">
-<div class="bubble">
-<b>${d.name}</b><br>
-${d.text}
-<div class="meta">${formatTime(d.time)}</div>
-</div>
-`;
-
-chat.appendChild(div);
-chat.scrollTop=chat.scrollHeight;
+/* typing status */
+msg.addEventListener("input",()=>{
+if(!currentUser)return;
+set(ref(db,"typing/"+profile.name),true);
+setTimeout(()=>{
+set(ref(db,"typing/"+profile.name),false);
+},1000);
 });
 </script>
-
 </body>
 </html>

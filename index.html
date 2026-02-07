@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Chatly</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
+
+body{
+background:#0b141a;
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+color:white;
+}
+
+.app{
+width:100%;
+max-width:480px;
+height:100vh;
+display:flex;
+flex-direction:column;
+background:#111b21;
+}
+
+.header{
+background:#202c33;
+padding:15px;
+font-size:20px;
+font-weight:bold;
+text-align:center;
+border-bottom:1px solid #2a3942;
+}
+
+.hidden{display:none;}
+
+#login{
+padding:20px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+#chat{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+#messages{
+flex:1;
+overflow-y:auto;
+padding:10px;
+}
+
+.message{
+background:#202c33;
+padding:8px 12px;
+border-radius:10px;
+margin:6px 0;
+max-width:85%;
+word-wrap:break-word;
+}
+
+.username{
+font-size:12px;
+color:#53bdeb;
+font-weight:bold;
+margin-bottom:2px;
+}
+
+.text{
+font-size:14px;
+}
+
+.input-area{
+display:flex;
+gap:6px;
+padding:10px;
+background:#202c33;
+}
+
+input{
+flex:1;
+padding:10px;
+border:none;
+border-radius:20px;
+outline:none;
+}
+
+button{
+padding:10px 15px;
+border:none;
+border-radius:20px;
+background:#00a884;
+color:white;
+font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header">Chatly</div>
+
+<div id="login">
+<input id="username" placeholder="Enter username">
+<button onclick="startChat()">Join Chat</button>
+</div>
+
+<div id="chat" class="hidden">
+
+<div id="messages"></div>
+
+<div class="input-area">
+<input id="messageInput" placeholder="Type message..." onkeypress="handleEnter(event)">
+<button onclick="sendMessage()">Send</button>
+</div>
+
+</div>
+
+</div>
+
+<!-- Firebase Compat (Works on GitHub Pages) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+
+// 🔥 REPLACE WITH YOUR FIREBASE CONFIG
+const firebaseConfig={
+apiKey:"YOUR_API_KEY",
+authDomain:"YOUR_AUTH_DOMAIN",
+databaseURL:"YOUR_DATABASE_URL",
+projectId:"YOUR_PROJECT_ID",
+storageBucket:"YOUR_STORAGE_BUCKET",
+messagingSenderId:"YOUR_SENDER_ID",
+appId:"YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+let username="";
+
+function startChat(){
+username=document.getElementById("username").value.trim();
+
+if(username===""){
+alert("Enter username first");
+return;
+}
+
+document.getElementById("login").classList.add("hidden");
+document.getElementById("chat").classList.remove("hidden");
+
+loadMessages();
+}
+
+function sendMessage(){
+const input=document.getElementById("messageInput");
+const text=input.value.trim();
+if(text==="") return;
+
+db.ref("chatly-room").push({
+user:username,
+text:text,
+time:Date.now()
+});
+
+input.value="";
+}
+
+function handleEnter(e){
+if(e.key==="Enter"){
+sendMessage();
+}
+}
+
+function loadMessages(){
+db.ref("chatly-room").on("child_added",snap=>{
+
+const msg=snap.val();
+
+const div=document.createElement("div");
+div.className="message";
+
+div.innerHTML=
+"<div class='username'>"+msg.user+"</div>"+
+"<div class='text'>"+msg.text+"</div>";
+
+document.getElementById("messages").appendChild(div);
+
+const box=document.getElementById("messages");
+box.scrollTop=box.scrollHeight;
+
+});
+}
+
+</script>
+
+</body>
+</html>

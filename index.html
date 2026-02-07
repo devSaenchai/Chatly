@@ -34,42 +34,36 @@ font-size:20px;
 font-weight:bold;
 }
 
-.hidden{display:none;}
-
-#login{
-padding:20px;
-display:flex;
-flex-direction:column;
-gap:10px;
-}
-
-#chat{
-flex:1;
-display:flex;
-flex-direction:column;
-}
-
 #messages{
 flex:1;
 overflow-y:auto;
 padding:10px;
+display:flex;
+flex-direction:column;
 }
 
 .message{
-background:#202c33;
-padding:10px;
-border-radius:10px;
+max-width:75%;
+padding:8px 12px;
 margin:6px 0;
+border-radius:10px;
+word-wrap:break-word;
+}
+
+.me{
+align-self:flex-start;
+background:#005c4b;
+}
+
+.other{
+align-self:flex-end;
+background:#202c33;
 }
 
 .username{
+font-size:11px;
 color:#53bdeb;
-font-size:12px;
 font-weight:bold;
-}
-
-.text{
-font-size:14px;
 }
 
 .input-area{
@@ -95,6 +89,30 @@ background:#00a884;
 color:white;
 font-weight:bold;
 }
+
+/* Popup */
+.popup{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.8);
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.popup-box{
+background:#202c33;
+padding:20px;
+border-radius:10px;
+display:flex;
+flex-direction:column;
+gap:10px;
+width:80%;
+max-width:300px;
+}
 </style>
 </head>
 
@@ -104,29 +122,31 @@ font-weight:bold;
 
 <div class="header">Chatly</div>
 
-<div id="login">
-<input id="usernameInput" placeholder="Choose username">
-<button onclick="registerUser()">Join Chat</button>
-</div>
-
-<div id="chat" class="hidden">
 <div id="messages"></div>
 
 <div class="input-area">
 <input id="messageInput" placeholder="Type message..." onkeypress="handleEnter(event)">
 <button onclick="sendMessage()">Send</button>
 </div>
-</div>
 
 </div>
 
-<!-- Firebase Compat -->
+<!-- Username Popup -->
+<div id="usernamePopup" class="popup">
+<div class="popup-box">
+<h3>Select Username</h3>
+<input id="usernameInput" placeholder="Enter username">
+<button onclick="saveUsername()">Start Chat</button>
+</div>
+</div>
+
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
 
-// 🔥 YOUR FIREBASE CONFIG (ALREADY ADDED)
+// 🔥 YOUR FIREBASE CONFIG
 const firebaseConfig={
 apiKey:"AIzaSyDaoRzu6_cpPxeAjoX6kbsTCUlf5Vpn4Kg",
 authDomain:"chatly-2f097.firebaseapp.com",
@@ -142,34 +162,25 @@ const db=firebase.database();
 
 let username="";
 
-// AUTO LOGIN
+// CHECK SAVED USER
 window.onload=function(){
-const savedUser=localStorage.getItem("chatly_username");
+const saved=localStorage.getItem("chatly_username");
 
-if(savedUser){
-username=savedUser;
-openChat();
+if(saved){
+username=saved;
+document.getElementById("usernamePopup").style.display="none";
+loadMessages();
 }
-};
+}
 
-// REGISTER USER
-function registerUser(){
+// SAVE USERNAME
+function saveUsername(){
 const name=document.getElementById("usernameInput").value.trim();
+if(name===""){alert("Enter username");return;}
 
-if(name===""){
-alert("Enter username");
-return;
-}
-
-localStorage.setItem("chatly_username",name);
 username=name;
-openChat();
-}
-
-// OPEN CHAT
-function openChat(){
-document.getElementById("login").classList.add("hidden");
-document.getElementById("chat").classList.remove("hidden");
+localStorage.setItem("chatly_username",name);
+document.getElementById("usernamePopup").style.display="none";
 loadMessages();
 }
 
@@ -188,11 +199,9 @@ time:Date.now()
 input.value="";
 }
 
-// ENTER KEY
+// ENTER SEND
 function handleEnter(e){
-if(e.key==="Enter"){
-sendMessage();
-}
+if(e.key==="Enter"){sendMessage();}
 }
 
 // LOAD MESSAGES
@@ -205,11 +214,12 @@ db.ref("chatly-room").on("child_added",snap=>{
 const msg=snap.val();
 
 const div=document.createElement("div");
-div.className="message";
+
+div.className="message "+(msg.user===username?"me":"other");
 
 div.innerHTML=
 "<div class='username'>"+msg.user+"</div>"+
-"<div class='text'>"+msg.text+"</div>";
+"<div>"+msg.text+"</div>";
 
 document.getElementById("messages").appendChild(div);
 

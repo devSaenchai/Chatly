@@ -29,10 +29,9 @@ background:#111b21;
 .header{
 background:#202c33;
 padding:15px;
+text-align:center;
 font-size:20px;
 font-weight:bold;
-text-align:center;
-border-bottom:1px solid #2a3942;
 }
 
 .hidden{display:none;}
@@ -58,18 +57,15 @@ padding:10px;
 
 .message{
 background:#202c33;
-padding:8px 12px;
+padding:10px;
 border-radius:10px;
 margin:6px 0;
-max-width:85%;
-word-wrap:break-word;
 }
 
 .username{
-font-size:12px;
 color:#53bdeb;
+font-size:12px;
 font-weight:bold;
-margin-bottom:2px;
 }
 
 .text{
@@ -78,7 +74,7 @@ font-size:14px;
 
 .input-area{
 display:flex;
-gap:6px;
+gap:5px;
 padding:10px;
 background:#202c33;
 }
@@ -92,15 +88,15 @@ outline:none;
 }
 
 button{
-padding:10px 15px;
+padding:10px;
 border:none;
 border-radius:20px;
 background:#00a884;
 color:white;
 font-weight:bold;
 }
-
 </style>
+
 </head>
 
 <body>
@@ -110,8 +106,8 @@ font-weight:bold;
 <div class="header">Chatly</div>
 
 <div id="login">
-<input id="username" placeholder="Enter username">
-<button onclick="startChat()">Join Chat</button>
+<input id="usernameInput" placeholder="Choose username">
+<button onclick="registerUser()">Join Chat</button>
 </div>
 
 <div id="chat" class="hidden">
@@ -127,13 +123,13 @@ font-weight:bold;
 
 </div>
 
-<!-- Firebase Compat (Works on GitHub Pages) -->
+<!-- Firebase Compat -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
 
-// 🔥 REPLACE WITH YOUR FIREBASE CONFIG
+// 🔥 PUT YOUR REAL FIREBASE CONFIG HERE
 const firebaseConfig={
 apiKey:"YOUR_API_KEY",
 authDomain:"YOUR_AUTH_DOMAIN",
@@ -149,20 +145,40 @@ const db=firebase.database();
 
 let username="";
 
-function startChat(){
-username=document.getElementById("username").value.trim();
+// AUTO LOGIN CHECK
+window.onload=function(){
+const savedUser=localStorage.getItem("chatly_username");
 
-if(username===""){
-alert("Enter username first");
+if(savedUser){
+username=savedUser;
+openChat();
+}else{
+document.getElementById("login").classList.remove("hidden");
+}
+}
+
+// REGISTER USERNAME
+function registerUser(){
+const name=document.getElementById("usernameInput").value.trim();
+
+if(name===""){
+alert("Enter username");
 return;
 }
 
+localStorage.setItem("chatly_username",name);
+username=name;
+openChat();
+}
+
+// OPEN CHAT
+function openChat(){
 document.getElementById("login").classList.add("hidden");
 document.getElementById("chat").classList.remove("hidden");
-
 loadMessages();
 }
 
+// SEND MESSAGE
 function sendMessage(){
 const input=document.getElementById("messageInput");
 const text=input.value.trim();
@@ -177,13 +193,18 @@ time:Date.now()
 input.value="";
 }
 
+// ENTER KEY SEND
 function handleEnter(e){
 if(e.key==="Enter"){
 sendMessage();
 }
 }
 
+// LOAD MESSAGES
 function loadMessages(){
+
+db.ref("chatly-room").off();
+
 db.ref("chatly-room").on("child_added",snap=>{
 
 const msg=snap.val();

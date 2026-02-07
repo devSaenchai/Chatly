@@ -1,71 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chatly Ultra Stable</title>
-
 <script src="https://cdn.tailwindcss.com"></script>
-
-<style>
-body{background:#0b141a}
-.msg{max-width:78%}
-.typing-dot{width:4px;height:4px;background:#cbd5e1;border-radius:50%;display:inline-block;margin-right:2px;animation:b 1s infinite}
-.typing-dot:nth-child(2){animation-delay:.2s}
-.typing-dot:nth-child(3){animation-delay:.4s}
-@keyframes b{0%,80%,100%{opacity:.2}40%{opacity:1}}
-</style>
 </head>
 
-<body class="h-screen flex flex-col text-white">
+<body class="bg-gray-100 h-screen flex flex-col">
 
-<div id="header" class="bg-[#202c33] p-3 font-semibold flex gap-2">
-<button id="backBtn" class="hidden">←</button>
-<div id="headerTitle">Chatly</div>
-</div>
-
-<div id="home" class="flex-1 overflow-y-auto"></div>
-
-<div id="chatScreen" class="hidden flex flex-col flex-1">
-<div id="chat" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
-<div id="typing" class="text-xs px-3 h-5"></div>
-
-<div class="bg-[#202c33] p-2 flex gap-2">
-<input id="msg" class="flex-1 p-2 rounded-full text-black">
-<button onclick="send()" class="bg-[#005c4b] px-4 rounded-full">
-Send
-</button>
-</div>
-</div>
-
-<div id="setup"
-class="fixed inset-0 bg-black/70 flex items-center justify-center">
-<div class="bg-[#202c33] p-6 rounded-xl w-80 space-y-3">
-
-<input id="nameInput"
-placeholder="Username"
-class="w-full p-2 rounded text-black">
-
-<button onclick="saveProfile()"
-class="bg-[#005c4b] w-full p-2 rounded">
+<div id="setup" class="fixed inset-0 bg-white flex flex-col items-center justify-center gap-3 z-50">
+<h2 class="text-xl font-bold">Welcome to Chatly</h2>
+<input id="username" placeholder="Username" class="border p-2 rounded">
+<input type="file" id="photo">
+<button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded">
 Start
 </button>
+</div>
 
+<div id="home" class="hidden flex flex-col h-full">
+<div class="bg-blue-500 text-white p-3 font-bold">Chatly</div>
+<div id="users" class="flex-1 overflow-y-auto p-2"></div>
+</div>
+
+<div id="chat" class="hidden flex flex-col h-full">
+<div class="bg-blue-500 text-white p-3 flex items-center gap-2">
+<button onclick="backHome()">⬅</button>
+<img id="chatPhoto" class="w-8 h-8 rounded-full">
+<span id="chatName"></span>
+</div>
+
+<div id="messages" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+
+<div class="p-2 flex gap-2">
+<input id="msgInput" class="flex-1 border p-2 rounded">
+<button onclick="sendMessage()" class="bg-blue-500 text-white px-4 rounded">Send</button>
 </div>
 </div>
 
 <script type="module">
-import {initializeApp}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-getDatabase,ref,set,push,
-onValue,onChildAdded,
-update,onDisconnect
-}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+getFirestore,doc,setDoc,getDoc,getDocs,
+collection,addDoc,query,where,orderBy,onSnapshot,serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+getStorage,ref,uploadBytes,getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const firebaseConfig={
+const firebaseConfig = {
 apiKey:"AIzaSyDaoRzu6_cpPxeAjoX6kbsTCUlf5Vpn4Kg",
 authDomain:"chatly-2f097.firebaseapp.com",
 databaseURL:"https://chatly-2f097-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -76,189 +58,151 @@ appId:"1:632092552334:web:b1390de09936da2516eddf"
 };
 
 const app=initializeApp(firebaseConfig);
-const db=getDatabase(app);
+const db=getFirestore(app);
+const storage=getStorage(app);
+
+const DEFAULT_PHOTO="https://i.imgur.com/6VBx3io.png";
+
+let currentUser=null;
+let currentChatUser=null;
 
 const setup=document.getElementById("setup");
-const nameInput=document.getElementById("nameInput");
 const home=document.getElementById("home");
-const chatScreen=document.getElementById("chatScreen");
-const headerTitle=document.getElementById("headerTitle");
-const backBtn=document.getElementById("backBtn");
 const chat=document.getElementById("chat");
-const typing=document.getElementById("typing");
-const msg=document.getElementById("msg");
+const usersDiv=document.getElementById("users");
+const messagesDiv=document.getElementById("messages");
 
-let profile=JSON.parse(localStorage.getItem("chatlyUser"));
-let currentUser=null;
-let currentChatId=null;
-let lastDay=null;
+document.getElementById("startBtn").onclick=createUser;
 
-if(profile){
-setup.style.display="none";
-setPresence();
-loadUsers();
+async function createUser(){
+
+let username=document.getElementById("username").value.trim();
+let file=document.getElementById("photo").files[0];
+
+if(!username) return alert("Enter username");
+
+let refUser=doc(db,"users",username);
+let snap=await getDoc(refUser);
+
+if(snap.exists()) return alert("Username exists");
+
+let photo=DEFAULT_PHOTO;
+
+if(file){
+let storageRef=ref(storage,"profiles/"+username);
+await uploadBytes(storageRef,file);
+photo=await getDownloadURL(storageRef);
 }
 
-window.saveProfile=()=>{
-const name=nameInput.value.trim();
-if(!name)return alert("Enter username");
+await setDoc(refUser,{username,photo});
 
-profile={name};
-localStorage.setItem("chatlyUser",JSON.stringify(profile));
-
-set(ref(db,"users/"+name),profile).then(()=>{
-setup.style.display="none";
-setPresence();
-loadUsers();
-});
-};
-
-function setPresence(){
-const statusRef=ref(db,"status/"+profile.name);
-set(statusRef,{online:true,lastSeen:Date.now()});
-onDisconnect(statusRef).set({online:false,lastSeen:Date.now()});
+localStorage.setItem("chatlyUser",username);
+startApp();
 }
 
-function loadUsers(){
-onValue(ref(db,"users"),snap=>{
-home.innerHTML="";
-let users=snap.val()||{};
+async function startApp(){
 
-Object.values(users).forEach(u=>{
-if(u.name===profile.name)return;
+currentUser=localStorage.getItem("chatlyUser");
+if(!currentUser) return;
 
-let div=document.createElement("div");
-div.className=
-"p-3 border-b border-[#2a3942] cursor-pointer hover:bg-[#202c33]";
-
-let chatId=[profile.name,u.name].sort().join("_");
-
-onValue(ref(db,"last/"+chatId),last=>{
-let lastMsg=last.val()?.text||"";
-
-onValue(ref(db,"status/"+u.name),s=>{
-let online=s.val()?.online?"🟢":"⚫";
-
-div.innerHTML=`
-<div>${u.name} ${online}</div>
-<div class="text-sm opacity-60">${lastMsg}</div>
-`;
-});
-});
-
-div.onclick=()=>openChat(u);
-home.appendChild(div);
-});
-});
-}
-
-backBtn.onclick=()=>{
-chatScreen.classList.add("hidden");
+setup.classList.add("hidden");
 home.classList.remove("hidden");
-headerTitle.textContent="Chatly";
-backBtn.classList.add("hidden");
-};
 
-function dayLabel(ts){
-let d=new Date(ts);
-let today=new Date();
-let yest=new Date();yest.setDate(today.getDate()-1);
-
-if(d.toDateString()===today.toDateString())return"Today";
-if(d.toDateString()===yest.toDateString())return"Yesterday";
-return d.toLocaleDateString();
+loadUsers();
 }
 
-function openChat(user){
-currentUser=user;
-currentChatId=[profile.name,user.name].sort().join("_");
+async function loadUsers(){
 
-home.classList.add("hidden");
-chatScreen.classList.remove("hidden");
-backBtn.classList.remove("hidden");
+usersDiv.innerHTML="";
+let snap=await getDocs(collection(db,"users"));
 
-headerTitle.textContent=user.name;
-chat.innerHTML="";
-lastDay=null;
+snap.forEach(docu=>{
+let u=docu.data();
+if(u.username===currentUser) return;
 
-onChildAdded(ref(db,"chats/"+currentChatId),snap=>{
-let d=snap.val();
-
-if(d.sender!==profile.name){
-update(ref(db,"chats/"+currentChatId+"/"+snap.key),
-{read:true});
-}
-
-let lbl=dayLabel(d.time);
-if(lbl!==lastDay){
-let sep=document.createElement("div");
-sep.className="text-center text-xs opacity-60 my-2";
-sep.textContent=lbl;
-chat.appendChild(sep);
-lastDay=lbl;
-}
-
-let div=document.createElement("div");
-div.className=
-"msg p-2 rounded-lg "+
-(d.sender===profile.name
-?"bg-[#005c4b] ml-auto"
-:"bg-[#202c33]");
-
-let ticks=d.sender===profile.name
-?(d.read?"✔✔":"✔"):"";
-
-div.innerHTML=`
-${d.text}
-<div class="text-xs opacity-60 text-right">
-${new Date(d.time).toLocaleTimeString([],{
-hour:"2-digit",minute:"2-digit"})}
-${ticks}
+usersDiv.innerHTML+=`
+<div onclick="openChat('${u.username}','${u.photo}')" 
+class="bg-white p-2 rounded mb-2 flex items-center gap-2 cursor-pointer">
+<img src="${u.photo}" class="w-10 h-10 rounded-full">
+<span>${u.username}</span>
 </div>
 `;
-
-chat.appendChild(div);
-chat.scrollTop=chat.scrollHeight;
-});
-
-onValue(ref(db,"typing/"+user.name),s=>{
-typing.innerHTML=s.val()?`
-${user.name}
-<span class="typing-dot"></span>
-<span class="typing-dot"></span>
-<span class="typing-dot"></span>
-`:"";
 });
 }
 
-window.send=()=>{
-let text=msg.value.trim();
-if(!text||!currentUser)return;
+window.openChat=function(name,photo){
 
-push(ref(db,"chats/"+currentChatId),{
-sender:profile.name,
-text,
-time:Date.now(),
-read:false
+currentChatUser=name;
+
+home.classList.add("hidden");
+chat.classList.remove("hidden");
+
+document.getElementById("chatName").innerText=name;
+document.getElementById("chatPhoto").src=photo;
+
+loadMessages();
+}
+
+window.backHome=function(){
+chat.classList.add("hidden");
+home.classList.remove("hidden");
+}
+
+function chatId(){
+return [currentUser,currentChatUser].sort().join("_");
+}
+
+function loadMessages(){
+
+messagesDiv.innerHTML="";
+
+const q=query(
+collection(db,"messages"),
+where("chatId","==",chatId()),
+orderBy("time")
+);
+
+onSnapshot(q,snap=>{
+
+messagesDiv.innerHTML="";
+
+snap.forEach(docu=>{
+let m=docu.data();
+
+let side=m.sender===currentUser?"self-end bg-blue-500 text-white":"self-start bg-white";
+
+let time=m.time?new Date(m.time.seconds*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+
+messagesDiv.innerHTML+=`
+<div class="max-w-[70%] p-2 rounded ${side}">
+<div>${m.text}</div>
+<div class="text-xs opacity-70">${time}</div>
+</div>
+`;
 });
 
-set(ref(db,"last/"+currentChatId),{
-text,
-time:Date.now()
+messagesDiv.scrollTop=messagesDiv.scrollHeight;
+});
+}
+
+window.sendMessage=async function(){
+
+let input=document.getElementById("msgInput");
+let text=input.value.trim();
+if(!text) return;
+
+await addDoc(collection(db,"messages"),{
+chatId:chatId(),
+sender:currentUser,
+text:text,
+time:serverTimestamp()
 });
 
-msg.value="";
-};
+input.value="";
+}
 
-msg.addEventListener("input",()=>{
-if(!currentUser)return;
+startApp();
 
-set(ref(db,"typing/"+profile.name),true);
-setTimeout(()=>{
-set(ref(db,"typing/"+profile.name),false);
-},1200);
-});
 </script>
-
 </body>
 </html>

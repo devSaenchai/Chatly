@@ -13,25 +13,32 @@ background:#efeae2;
 display:flex;
 flex-direction:column;
 height:100vh;
-overflow:hidden;
 }
 
 /* HEADER */
-.topbar{
+.header{
 background:#075e54;
 color:white;
 padding:10px;
 display:flex;
-justify-content:space-between;
 align-items:center;
+justify-content:space-between;
 }
 
-#onlineList{
-font-size:12px;
-opacity:.9;
+.profileMini{
+display:flex;
+align-items:center;
+gap:8px;
+cursor:pointer;
 }
 
-/* CHAT AREA */
+.profileMini img{
+width:32px;
+height:32px;
+border-radius:50%;
+}
+
+/* CHAT */
 #chat{
 flex:1;
 overflow-y:auto;
@@ -42,11 +49,10 @@ gap:4px;
 scroll-behavior:smooth;
 }
 
-/* MESSAGE */
 .msg{
+max-width:80%;
 display:flex;
 gap:6px;
-max-width:80%;
 animation:fade .2s ease;
 }
 
@@ -58,30 +64,30 @@ to{opacity:1;}
 .me{align-self:flex-end;flex-direction:row-reverse;}
 .other{align-self:flex-start;}
 
+.avatar{
+width:28px;height:28px;border-radius:50%;
+}
+
 .bubble{
+background:white;
 padding:8px 10px;
 border-radius:10px;
 font-size:14px;
 }
 
 .me .bubble{background:#d9fdd3;}
-.other .bubble{background:white;}
-
-.avatar{
-width:26px;height:26px;border-radius:50%;
-}
 
 .meta{
 font-size:11px;
 opacity:.6;
-margin-top:2px;
 text-align:right;
+margin-top:2px;
 }
 
 /* INPUT */
 .inputbar{
 display:flex;
-padding:6px;
+padding:8px;
 background:#f0f2f5;
 gap:6px;
 }
@@ -102,7 +108,7 @@ border-radius:50%;
 padding:10px 14px;
 }
 
-/* POPUP */
+/* POPUPS */
 .popup{
 position:fixed;
 top:0;left:0;width:100%;height:100%;
@@ -115,42 +121,80 @@ align-items:center;
 .box{
 background:white;
 padding:20px;
-border-radius:10px;
-width:85%;
-max-width:320px;
+border-radius:12px;
+width:90%;
+max-width:340px;
 text-align:center;
+}
+
+.box img{
+width:70px;
+height:70px;
+border-radius:50%;
+margin-bottom:10px;
+}
+
+.box input{
+width:100%;
+padding:8px;
+margin-top:6px;
+}
+
+.box button{
+margin-top:10px;
+padding:8px 12px;
+background:#075e54;
+color:white;
+border:none;
+border-radius:6px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="topbar">
+<div class="header">
 <div>Chatly</div>
-<div id="onlineList">0 online</div>
+<div class="profileMini" onclick="openProfile()">
+<img id="miniAvatar">
+<span id="miniName"></span>
+</div>
 </div>
 
 <div id="chat"></div>
-
-<div id="typing" style="padding:4px 10px;font-size:12px;color:#555;"></div>
 
 <div class="inputbar">
 <input id="msg" placeholder="Message">
 <button onclick="send()">➤</button>
 </div>
 
-<div id="userPopup" class="popup">
+<!-- PROFILE SETUP -->
+<div id="setupPopup" class="popup">
 <div class="box">
-<h3>Select Username</h3>
-<input id="usernameInput"><br><br>
-<button onclick="setUser()">Start Chat</button>
+<h3>Welcome to Chatly</h3>
+<img id="previewAvatar" src="https://i.pravatar.cc/150">
+<input id="usernameInput" placeholder="Enter username">
+<input type="file" id="avatarInput">
+<button onclick="saveProfile()">Start Chat</button>
+</div>
+</div>
+
+<!-- PROFILE EDIT -->
+<div id="editPopup" class="popup" style="display:none">
+<div class="box">
+<h3>Edit Profile</h3>
+<img id="editPreview">
+<input id="editName">
+<input type="file" id="editAvatar">
+<button onclick="updateProfile()">Save</button>
+<button onclick="closeProfile()">Close</button>
 </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded,
-set,onValue,onDisconnect,update }
+update, query, orderByChild }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig={
@@ -166,53 +210,78 @@ appId:"1:632092552334:web:b1390de09936da2516eddf"
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-let username=localStorage.getItem("chatlyUser");
+let profile=JSON.parse(localStorage.getItem("chatlyProfile"));
 
-if(username){
-userPopup.style.display="none";
-setupPresence();
-}else{
-userPopup.style.display="flex";
+if(profile){
+setupPopup.style.display="none";
+applyProfile();
 }
 
-window.setUser=()=>{
+function applyProfile(){
+miniName.innerText=profile.name;
+miniAvatar.src=profile.avatar;
+}
+
+/* SAVE PROFILE */
+window.saveProfile=()=>{
 let name=usernameInput.value.trim();
 if(!name)return;
-localStorage.setItem("chatlyUser",name);
+
+let file=avatarInput.files[0];
+
+if(file){
+let r=new FileReader();
+r.onload=e=>{
+profile={name,avatar:e.target.result};
+localStorage.setItem("chatlyProfile",JSON.stringify(profile));
 location.reload();
 };
-
-function avatar(name){
-return "https://ui-avatars.com/api/?background=random&name="+encodeURIComponent(name);
+r.readAsDataURL(file);
+}else{
+profile={name,avatar:"https://i.pravatar.cc/150?u="+name};
+localStorage.setItem("chatlyProfile",JSON.stringify(profile));
+location.reload();
 }
-
-/* ONLINE STATUS */
-function setupPresence(){
-const userRef=ref(db,"online/"+username);
-set(userRef,true);
-onDisconnect(userRef).remove();
-}
-
-onValue(ref(db,"online"),snap=>{
-let users=snap.val()||{};
-onlineList.innerText=
-Object.keys(users).length+" online: "+Object.keys(users).join(", ");
-});
-
-/* TYPING */
-msg.oninput=()=>{
-set(ref(db,"typing/"+username),true);
-clearTimeout(window.typingTimeout);
-window.typingTimeout=setTimeout(()=>{
-set(ref(db,"typing/"+username),false);
-},1000);
 };
 
-onValue(ref(db,"typing"),snap=>{
-let t=snap.val()||{};
-let names=Object.keys(t).filter(n=>t[n] && n!==username);
-typing.innerText=names.length?names.join(", ")+" typing...":"";
-});
+/* EDIT PROFILE */
+window.openProfile=()=>{
+editPopup.style.display="flex";
+editName.value=profile.name;
+editPreview.src=profile.avatar;
+};
+
+window.closeProfile=()=>{
+editPopup.style.display="none";
+};
+
+window.updateProfile=()=>{
+let newName=editName.value||profile.name;
+let file=editAvatar.files[0];
+
+if(file){
+let r=new FileReader();
+r.onload=e=>{
+profile={name:newName,avatar:e.target.result};
+localStorage.setItem("chatlyProfile",JSON.stringify(profile));
+location.reload();
+};
+r.readAsDataURL(file);
+}else{
+profile.name=newName;
+localStorage.setItem("chatlyProfile",JSON.stringify(profile));
+location.reload();
+}
+};
+
+/* TIME FORMAT */
+function formatTime(t){
+let d=new Date(t);
+let h=d.getHours();
+let m=d.getMinutes();
+if(m<10)m="0"+m;
+return h+":"+m;
+}
 
 /* SEND */
 window.send=()=>{
@@ -220,10 +289,9 @@ let text=msg.value.trim();
 if(!text)return;
 
 push(ref(db,"msgs"),{
-name:username,
+name:profile.name,
+avatar:profile.avatar,
 text,
-avatar:avatar(username),
-seen:false,
 time:Date.now()
 });
 
@@ -231,27 +299,20 @@ msg.value="";
 };
 
 /* LOAD MESSAGES */
-onChildAdded(ref(db,"msgs"),snap=>{
-let d=snap.val();
-let key=snap.key;
+const msgQuery=query(ref(db,"msgs"),orderByChild("time"));
 
-if(d.name!==username){
-update(ref(db,"msgs/"+key),{seen:true});
-}
+onChildAdded(msgQuery,snap=>{
+let d=snap.val();
 
 let div=document.createElement("div");
-div.className="msg "+(d.name===username?"me":"other");
-
-let ticks="";
-if(d.name===username){
-ticks=d.seen?"✔✔":"✔";
-}
+div.className="msg "+(d.name===profile.name?"me":"other");
 
 div.innerHTML=`
 <img class="avatar" src="${d.avatar}">
 <div class="bubble">
-<b>${d.name}</b><br>${d.text}
-<div class="meta">${ticks}</div>
+<b>${d.name}</b><br>
+${d.text}
+<div class="meta">${formatTime(d.time)}</div>
 </div>
 `;
 

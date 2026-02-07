@@ -96,7 +96,6 @@ color:white;
 font-weight:bold;
 }
 </style>
-
 </head>
 
 <body>
@@ -111,14 +110,12 @@ font-weight:bold;
 </div>
 
 <div id="chat" class="hidden">
-
 <div id="messages"></div>
 
 <div class="input-area">
 <input id="messageInput" placeholder="Type message..." onkeypress="handleEnter(event)">
 <button onclick="sendMessage()">Send</button>
 </div>
-
 </div>
 
 </div>
@@ -129,15 +126,15 @@ font-weight:bold;
 
 <script>
 
-// 🔥 PUT YOUR REAL FIREBASE CONFIG HERE
+// 🔥 YOUR FIREBASE CONFIG (ALREADY ADDED)
 const firebaseConfig={
-apiKey:"YOUR_API_KEY",
-authDomain:"YOUR_AUTH_DOMAIN",
-databaseURL:"YOUR_DATABASE_URL",
-projectId:"YOUR_PROJECT_ID",
-storageBucket:"YOUR_STORAGE_BUCKET",
-messagingSenderId:"YOUR_SENDER_ID",
-appId:"YOUR_APP_ID"
+apiKey:"AIzaSyDaoRzu6_cpPxeAjoX6kbsTCUlf5Vpn4Kg",
+authDomain:"chatly-2f097.firebaseapp.com",
+databaseURL:"https://chatly-2f097-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId:"chatly-2f097",
+storageBucket:"chatly-2f097.firebasestorage.app",
+messagingSenderId:"632092552334",
+appId:"1:632092552334:web:b1390de09936da2516eddf"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -145,19 +142,17 @@ const db=firebase.database();
 
 let username="";
 
-// AUTO LOGIN CHECK
+// AUTO LOGIN
 window.onload=function(){
 const savedUser=localStorage.getItem("chatly_username");
 
 if(savedUser){
 username=savedUser;
 openChat();
-}else{
-document.getElementById("login").classList.remove("hidden");
 }
-}
+};
 
-// REGISTER USERNAME
+// REGISTER USER
 function registerUser(){
 const name=document.getElementById("usernameInput").value.trim();
 
@@ -193,7 +188,7 @@ time:Date.now()
 input.value="";
 }
 
-// ENTER KEY SEND
+// ENTER KEY
 function handleEnter(e){
 if(e.key==="Enter"){
 sendMessage();

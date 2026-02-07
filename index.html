@@ -13,17 +13,22 @@ background:#efeae2;
 display:flex;
 flex-direction:column;
 height:100vh;
+overflow:hidden;
 }
 
 /* HEADER */
 .topbar{
 background:#075e54;
 color:white;
-padding:12px;
+padding:10px;
 display:flex;
 justify-content:space-between;
 align-items:center;
-font-weight:bold;
+}
+
+#onlineList{
+font-size:12px;
+opacity:.9;
 }
 
 /* CHAT AREA */
@@ -33,42 +38,50 @@ overflow-y:auto;
 padding:10px;
 display:flex;
 flex-direction:column;
+gap:4px;
+scroll-behavior:smooth;
 }
 
-/* MESSAGE BUBBLES */
+/* MESSAGE */
 .msg{
-max-width:75%;
-padding:8px 10px;
-margin:4px 0;
-border-radius:8px;
-font-size:14px;
-word-wrap:break-word;
 display:flex;
 gap:6px;
-align-items:flex-start;
+max-width:80%;
+animation:fade .2s ease;
 }
 
-.me{
-background:#d9fdd3;
-align-self:flex-end;
-flex-direction:row-reverse;
+@keyframes fade{
+from{opacity:0;transform:translateY(6px);}
+to{opacity:1;}
 }
 
-.other{
-background:white;
-align-self:flex-start;
+.me{align-self:flex-end;flex-direction:row-reverse;}
+.other{align-self:flex-start;}
+
+.bubble{
+padding:8px 10px;
+border-radius:10px;
+font-size:14px;
 }
+
+.me .bubble{background:#d9fdd3;}
+.other .bubble{background:white;}
 
 .avatar{
-width:28px;
-height:28px;
-border-radius:50%;
+width:26px;height:26px;border-radius:50%;
 }
 
-/* INPUT BAR */
+.meta{
+font-size:11px;
+opacity:.6;
+margin-top:2px;
+text-align:right;
+}
+
+/* INPUT */
 .inputbar{
 display:flex;
-padding:8px;
+padding:6px;
 background:#f0f2f5;
 gap:6px;
 }
@@ -85,17 +98,14 @@ outline:none;
 background:#075e54;
 color:white;
 border:none;
-padding:10px 14px;
 border-radius:50%;
+padding:10px 14px;
 }
 
-/* POPUPS */
+/* POPUP */
 .popup{
 position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
+top:0;left:0;width:100%;height:100%;
 background:#0008;
 display:flex;
 justify-content:center;
@@ -110,57 +120,37 @@ width:85%;
 max-width:320px;
 text-align:center;
 }
-
-/* MOBILE OPTIMIZATION */
-@media(min-width:700px){
-body{
-max-width:500px;
-margin:auto;
-border-left:1px solid #ccc;
-border-right:1px solid #ccc;
-}
-}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-<span>Chatly</span>
-<span id="profileBtn">👤</span>
+<div>Chatly</div>
+<div id="onlineList">0 online</div>
 </div>
 
 <div id="chat"></div>
+
+<div id="typing" style="padding:4px 10px;font-size:12px;color:#555;"></div>
 
 <div class="inputbar">
 <input id="msg" placeholder="Message">
 <button onclick="send()">➤</button>
 </div>
 
-<!-- USER POPUP -->
 <div id="userPopup" class="popup">
 <div class="box">
-<h3>Enter Username</h3>
+<h3>Select Username</h3>
 <input id="usernameInput"><br><br>
-<button onclick="setUser()">Continue</button>
-<div id="continueOld"></div>
-</div>
-</div>
-
-<!-- PROFILE POPUP -->
-<div id="profilePopup" class="popup" style="display:none">
-<div class="box">
-<h3>Edit Profile</h3>
-<input id="editName" placeholder="New name"><br><br>
-<input type="file" id="editPic"><br><br>
-<button onclick="saveProfile()">Save</button>
-<button onclick="closeProfile()">Close</button>
+<button onclick="setUser()">Start Chat</button>
 </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded }
+import { getDatabase, ref, push, onChildAdded,
+set,onValue,onDisconnect,update }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig={
@@ -176,81 +166,98 @@ appId:"1:632092552334:web:b1390de09936da2516eddf"
 const app=initializeApp(firebaseConfig);
 const db=getDatabase(app);
 
-let username="";
-let avatar="https://i.imgur.com/6VBx3io.png";
+let username=localStorage.getItem("chatlyUser");
 
-/* CONTINUE OLD USER */
-if(localStorage.user){
-let u=JSON.parse(localStorage.user);
-document.getElementById("continueOld").innerHTML=
-`<br><button onclick="continueOld()">Continue as ${u.name}</button>`;
+if(username){
+userPopup.style.display="none";
+setupPresence();
+}else{
+userPopup.style.display="flex";
 }
 
-window.continueOld=()=>{
-let u=JSON.parse(localStorage.user);
-username=u.name;
-avatar=u.avatar;
-userPopup.style.display="none";
-};
-
 window.setUser=()=>{
-username=usernameInput.value;
-localStorage.user=JSON.stringify({name:username,avatar});
-userPopup.style.display="none";
+let name=usernameInput.value.trim();
+if(!name)return;
+localStorage.setItem("chatlyUser",name);
+location.reload();
 };
 
-/* SEND MESSAGE */
+function avatar(name){
+return "https://ui-avatars.com/api/?background=random&name="+encodeURIComponent(name);
+}
+
+/* ONLINE STATUS */
+function setupPresence(){
+const userRef=ref(db,"online/"+username);
+set(userRef,true);
+onDisconnect(userRef).remove();
+}
+
+onValue(ref(db,"online"),snap=>{
+let users=snap.val()||{};
+onlineList.innerText=
+Object.keys(users).length+" online: "+Object.keys(users).join(", ");
+});
+
+/* TYPING */
+msg.oninput=()=>{
+set(ref(db,"typing/"+username),true);
+clearTimeout(window.typingTimeout);
+window.typingTimeout=setTimeout(()=>{
+set(ref(db,"typing/"+username),false);
+},1000);
+};
+
+onValue(ref(db,"typing"),snap=>{
+let t=snap.val()||{};
+let names=Object.keys(t).filter(n=>t[n] && n!==username);
+typing.innerText=names.length?names.join(", ")+" typing...":"";
+});
+
+/* SEND */
 window.send=()=>{
 let text=msg.value.trim();
 if(!text)return;
-push(ref(db,"msgs"),{name:username,text,avatar});
+
+push(ref(db,"msgs"),{
+name:username,
+text,
+avatar:avatar(username),
+seen:false,
+time:Date.now()
+});
+
 msg.value="";
 };
 
 /* LOAD MESSAGES */
 onChildAdded(ref(db,"msgs"),snap=>{
 let d=snap.val();
+let key=snap.key;
+
+if(d.name!==username){
+update(ref(db,"msgs/"+key),{seen:true});
+}
 
 let div=document.createElement("div");
 div.className="msg "+(d.name===username?"me":"other");
 
+let ticks="";
+if(d.name===username){
+ticks=d.seen?"✔✔":"✔";
+}
+
 div.innerHTML=`
 <img class="avatar" src="${d.avatar}">
-<div><b>${d.name}</b><br>${d.text}</div>
+<div class="bubble">
+<b>${d.name}</b><br>${d.text}
+<div class="meta">${ticks}</div>
+</div>
 `;
 
 chat.appendChild(div);
 chat.scrollTop=chat.scrollHeight;
 });
-
-/* PROFILE */
-profileBtn.onclick=()=>{
-profilePopup.style.display="flex";
-};
-
-window.closeProfile=()=>{
-profilePopup.style.display="none";
-};
-
-window.saveProfile=()=>{
-let newName=editName.value||username;
-let file=editPic.files[0];
-
-if(file){
-let reader=new FileReader();
-reader.onload=e=>{
-avatar=e.target.result;
-username=newName;
-localStorage.user=JSON.stringify({name:username,avatar});
-closeProfile();
-};
-reader.readAsDataURL(file);
-}else{
-username=newName;
-localStorage.user=JSON.stringify({name:username,avatar});
-closeProfile();
-}
-};
 </script>
 
 </body>

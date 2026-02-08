@@ -1,325 +1,308 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chatly</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Chatly</title>
+    <style>
+        :root {
+            --primary: #18B17A;
+            --bg-light: #F4F7F6;
+            --text-dark: #2D3142;
+            --gray: #9DA3B4;
+        }
 
-<style>
-body{
-margin:0;
-font-family:system-ui;
-background:#efeae2;
-display:flex;
-flex-direction:column;
-height:100vh;
-}
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-light);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            color: var(--text-dark);
+        }
 
-/* HEADER */
-.header{
-background:#075e54;
-color:white;
-padding:10px;
-display:flex;
-align-items:center;
-justify-content:space-between;
-}
+        /* HEADER */
+        .header {
+            background: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #eee;
+        }
 
-.profileMini{
-display:flex;
-align-items:center;
-gap:8px;
-cursor:pointer;
-}
+        .header-left { font-weight: 700; font-size: 1.2rem; }
+        .typing-text { font-size: 10px; color: var(--primary); font-weight: normal; height: 12px; }
+        
+        .profile-trigger {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+        }
 
-.profileMini img{
-width:32px;
-height:32px;
-border-radius:50%;
-}
+        /* CHAT AREA */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            scroll-behavior: smooth;
+        }
 
-/* CHAT */
-#chat{
-flex:1;
-overflow-y:auto;
-padding:10px;
-display:flex;
-flex-direction:column;
-gap:4px;
-scroll-behavior:smooth;
-}
+        .date-divider {
+            align-self: center;
+            background: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 11px;
+            color: var(--gray);
+            margin: 15px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            font-weight: 600;
+        }
 
-.msg{
-max-width:80%;
-display:flex;
-gap:6px;
-animation:fade .2s ease;
-}
+        .msg { display: flex; gap: 10px; max-width: 85%; align-items: flex-end; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; } }
 
-@keyframes fade{
-from{opacity:0;transform:translateY(6px);}
-to{opacity:1;}
-}
+        .me { align-self: flex-end; flex-direction: row-reverse; }
+        .other { align-self: flex-start; }
 
-.me{align-self:flex-end;flex-direction:row-reverse;}
-.other{align-self:flex-start;}
+        .avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
 
-.avatar{
-width:28px;height:28px;border-radius:50%;
-}
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+        }
 
-.bubble{
-background:white;
-padding:8px 10px;
-border-radius:10px;
-font-size:14px;
-}
+        .me .bubble { background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .other .bubble { background: white; color: var(--text-dark); border-bottom-left-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-.me .bubble{background:#d9fdd3;}
+        .chat-img { max-width: 100%; border-radius: 12px; margin-top: 5px; cursor: pointer; display: block; }
+        .meta { font-size: 10px; margin-top: 5px; opacity: 0.7; display: flex; align-items: center; gap: 4px; }
+        .edited-label { font-style: italic; }
 
-.meta{
-font-size:11px;
-opacity:.6;
-text-align:right;
-margin-top:2px;
-}
+        /* INPUT BAR */
+        .input-container { padding: 15px 20px; background: white; }
+        .inputbar {
+            display: flex;
+            background: #F4F7F6;
+            padding: 8px 15px;
+            border-radius: 30px;
+            align-items: center;
+            gap: 10px;
+        }
 
-/* INPUT */
-.inputbar{
-display:flex;
-padding:8px;
-background:#f0f2f5;
-gap:6px;
-}
+        .inputbar input { flex: 1; background: transparent; border: none; outline: none; padding: 8px; font-size: 14px; }
+        .inputbar button {
+            background: var(--primary); color: white; border: none; border-radius: 50%;
+            width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
 
-.inputbar input{
-flex:1;
-padding:10px;
-border-radius:20px;
-border:none;
-outline:none;
-}
+        /* POPUPS & MODALS */
+        .full-page {
+            position: fixed; inset: 0; background: white; z-index: 2000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px; text-align: center;
+        }
 
-.inputbar button{
-background:#075e54;
-color:white;
-border:none;
-border-radius:50%;
-padding:10px 14px;
-}
+        .logo-area {
+            background: var(--primary); width: 80px; height: 80px; border-radius: 25px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 20px;
+        }
+        .logo-area svg { width: 40px; fill: white; }
 
-/* POPUPS */
-.popup{
-position:fixed;
-top:0;left:0;width:100%;height:100%;
-background:#0008;
-display:flex;
-justify-content:center;
-align-items:center;
-}
+        .login-box h2 { margin: 0 0 10px 0; }
+        .input-group { width: 100%; max-width: 320px; margin-bottom: 15px; }
+        .input-group input { width: 100%; padding: 15px; border: 1px solid #EAECEF; border-radius: 12px; outline: none; box-sizing: border-box; }
+        .file-label { display: block; margin-top: 10px; font-size: 0.8rem; color: var(--primary); cursor: pointer; font-weight: 600; }
+        .btn-start { width: 100%; max-width: 320px; background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 600; cursor: pointer; }
 
-.box{
-background:white;
-padding:20px;
-border-radius:12px;
-width:90%;
-max-width:340px;
-text-align:center;
-}
-
-.box img{
-width:70px;
-height:70px;
-border-radius:50%;
-margin-bottom:10px;
-}
-
-.box input{
-width:100%;
-padding:8px;
-margin-top:6px;
-}
-
-.box button{
-margin-top:10px;
-padding:8px 12px;
-background:#075e54;
-color:white;
-border:none;
-border-radius:6px;
-}
-</style>
+        .msg-menu {
+            position: fixed; background: white; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none; flex-direction: column; overflow: hidden; z-index: 3000; width: 150px;
+        }
+        .msg-menu button { padding: 12px; border: none; background: none; text-align: left; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    </style>
 </head>
 
 <body>
 
-<div class="header">
-<div>Chatly</div>
-<div class="profileMini" onclick="openProfile()">
-<img id="miniAvatar">
-<span id="miniName"></span>
+<div id="setupPopup" class="full-page">
+    <div class="logo-area"><svg viewBox="0 0 24 24"><path d="M12,2C6.477,2,2,5.582,2,10c0,1.913,0.846,3.657,2.262,4.981C3.486,17.489,2,19,2,19c0,0,3.333,0,6.046-2.001 C9.27,17.653,10.601,18,12,18c5.523,0,10-3.582,10-8S17.523,2,12,2z M17,11h-2v2h-2v-2H7V9h6V7h2v2h2V11z"/></svg></div>
+    <div class="login-box">
+        <h2>Chatly</h2>
+        <p style="color:var(--gray)">Login Your Account</p>
+        <div class="input-group"><input id="usernameInput" type="text" placeholder="Username"></div>
+        <input type="file" id="avatarInput" hidden accept="image/*">
+        <label for="avatarInput" class="file-label">Upload Profile Picture (Optional)</label>
+        <button class="btn-start" onclick="saveProfile()">Start Chat</button>
+    </div>
 </div>
+
+<div id="editProfilePopup" class="full-page" style="display:none; background: rgba(0,0,0,0.5);">
+    <div class="login-box" style="background: white; padding: 30px; border-radius: 25px; width: 80%; max-width: 350px;">
+        <h3>Profile Settings</h3>
+        <img id="editAvatarPreview" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 2px solid var(--primary);">
+        <div class="input-group"><input id="editNameInput" type="text" placeholder="Update Name"></div>
+        <input type="file" id="editAvatarInput" hidden accept="image/*">
+        <label for="editAvatarInput" class="file-label" style="margin-bottom: 20px;">Change Profile Picture</label>
+        <button class="btn-start" onclick="updateProfile()">Save Changes</button>
+        <button class="btn-start" style="background: #ef4444; margin-top: 10px;" onclick="signOut()">Sign Out</button>
+        <p onclick="closeProfile()" style="margin-top: 15px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">Cancel</p>
+    </div>
+</div>
+
+<div class="header">
+    <div class="header-left">
+        <div>Chatly</div>
+        <div id="typingStatus" class="typing-text"></div>
+    </div>
+    <img id="miniAvatar" class="profile-trigger" onclick="openProfile()">
 </div>
 
 <div id="chat"></div>
 
-<div class="inputbar">
-<input id="msg" placeholder="Message">
-<button onclick="send()">➤</button>
+<div class="input-container">
+    <div class="inputbar">
+        <label for="imageInput" style="cursor:pointer; padding: 0 5px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--gray)"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1-.9 2-2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        </label>
+        <input type="file" id="imageInput" hidden accept="image/*">
+        <input id="msg" placeholder="Write message...">
+        <button onclick="send()">➤</button>
+    </div>
 </div>
 
-<!-- PROFILE SETUP -->
-<div id="setupPopup" class="popup">
-<div class="box">
-<h3>Welcome to Chatly</h3>
-<img id="previewAvatar" src="https://i.pravatar.cc/150">
-<input id="usernameInput" placeholder="Enter username">
-<input type="file" id="avatarInput">
-<button onclick="saveProfile()">Start Chat</button>
-</div>
-</div>
-
-<!-- PROFILE EDIT -->
-<div id="editPopup" class="popup" style="display:none">
-<div class="box">
-<h3>Edit Profile</h3>
-<img id="editPreview">
-<input id="editName">
-<input type="file" id="editAvatar">
-<button onclick="updateProfile()">Save</button>
-<button onclick="closeProfile()">Close</button>
-</div>
+<div id="messageMenu" class="msg-menu">
+    <button onclick="handleEdit()">Edit</button>
+    <button style="color:red" onclick="handleDelete()">Delete</button>
+    <button onclick="closeMenu()">Cancel</button>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded,
-update, query, orderByChild }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded, onChildChanged, onChildRemoved, update, query, orderByChild, onValue, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-const firebaseConfig={
-apiKey:"AIzaSyDaoRzu6_cpPxeAjoX6kbsTCUlf5Vpn4Kg",
-authDomain:"chatly-2f097.firebaseapp.com",
-databaseURL:"https://chatly-2f097-default-rtdb.asia-southeast1.firebasedatabase.app",
-projectId:"chatly-2f097",
-storageBucket:"chatly-2f097.firebasestorage.app",
-messagingSenderId:"632092552334",
-appId:"1:632092552334:web:b1390de09936da2516eddf"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyDaoRzu6_cpPxeAjoX6kbsTCUlf5Vpn4Kg",
+        authDomain: "chatly-2f097.firebaseapp.com",
+        databaseURL: "https://chatly-2f097-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "chatly-2f097",
+        storageBucket: "chatly-2f097.firebasestorage.app",
+        messagingSenderId: "632092552334",
+        appId: "1:632092552334:web:b1390de09936da2516eddf"
+    };
 
-const app=initializeApp(firebaseConfig);
-const db=getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    let profile = JSON.parse(localStorage.getItem("chatlyProfile"));
+    let activeKey = null, activeText = "", lastMessageDate = null, typingTimeout;
 
-let profile=JSON.parse(localStorage.getItem("chatlyProfile"));
+    if (profile) {
+        setupPopup.style.display = "none";
+        miniAvatar.src = profile.avatar;
+    }
 
-if(profile){
-setupPopup.style.display="none";
-applyProfile();
-}
+    /* PROFILE ACTIONS */
+    window.saveProfile = () => {
+        let name = usernameInput.value.trim();
+        if (!name) return;
+        let file = avatarInput.files[0];
+        const finalize = (img) => {
+            profile = { name, avatar: img };
+            localStorage.setItem("chatlyProfile", JSON.stringify(profile));
+            location.reload();
+        };
+        if (file) { let r = new FileReader(); r.onload = e => finalize(e.target.result); r.readAsDataURL(file); }
+        else finalize(`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=18B17A&color=fff`);
+    };
 
-function applyProfile(){
-miniName.innerText=profile.name;
-miniAvatar.src=profile.avatar;
-}
+    window.openProfile = () => { editProfilePopup.style.display = "flex"; editNameInput.value = profile.name; editAvatarPreview.src = profile.avatar; };
+    window.closeProfile = () => editProfilePopup.style.display = "none";
+    window.signOut = () => { if(confirm("Sign out?")) { localStorage.removeItem("chatlyProfile"); location.reload(); } };
+    
+    window.updateProfile = () => {
+        let newName = editNameInput.value.trim();
+        let file = editAvatarInput.files[0];
+        const save = (img) => { profile.name = newName; profile.avatar = img; localStorage.setItem("chatlyProfile", JSON.stringify(profile)); location.reload(); };
+        if (file) { let r = new FileReader(); r.onload = e => save(e.target.result); r.readAsDataURL(file); }
+        else save(profile.avatar.includes("ui-avatars") ? `https://ui-avatars.com/api/?name=${encodeURIComponent(newName)}&background=18B17A&color=fff` : profile.avatar);
+    };
 
-/* SAVE PROFILE */
-window.saveProfile=()=>{
-let name=usernameInput.value.trim();
-if(!name)return;
+    /* MESSAGING */
+    window.send = () => {
+        let text = msg.value.trim();
+        if (!text || !profile) return;
+        setTyping(false);
+        push(ref(db, "msgs"), { name: profile.name, avatar: profile.avatar, text, time: Date.now() });
+        msg.value = "";
+    };
 
-let file=avatarInput.files[0];
+    imageInput.onchange = function() {
+        if (this.files[0]) {
+            let r = new FileReader();
+            r.onload = e => push(ref(db, "msgs"), { name: profile.name, avatar: profile.avatar, image: e.target.result, time: Date.now() });
+            r.readAsDataURL(this.files[0]);
+        }
+    };
 
-if(file){
-let r=new FileReader();
-r.onload=e=>{
-profile={name,avatar:e.target.result};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
-};
-r.readAsDataURL(file);
-}else{
-profile={name,avatar:"https://i.pravatar.cc/150?u="+name};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
-}
-};
+    /* TYPING INDICATOR */
+    const setTyping = (isTyping) => { if (profile) set(ref(db, `typing/${profile.name.replace(/\s/g, '_')}`), isTyping ? { name: profile.name } : null); };
+    msg.addEventListener("input", () => { setTyping(true); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => setTyping(false), 2000); });
+    onValue(ref(db, "typing"), snap => {
+        const others = Object.values(snap.val() || {}).filter(u => u.name !== profile?.name).map(u => u.name);
+        typingStatus.innerText = others.length > 0 ? others.join(", ") + " is typing..." : "";
+    });
 
-/* EDIT PROFILE */
-window.openProfile=()=>{
-editPopup.style.display="flex";
-editName.value=profile.name;
-editPreview.src=profile.avatar;
-};
+    /* RENDERING */
+    function getDateLabel(t) {
+        const d = new Date(t), today = new Date();
+        if (d.toDateString() === today.toDateString()) return "Today";
+        today.setDate(today.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return "Yesterday";
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
 
-window.closeProfile=()=>{
-editPopup.style.display="none";
-};
+    onChildAdded(query(ref(db, "msgs"), orderByChild("time")), snap => {
+        let d = snap.val(), key = snap.key, currentDate = new Date(d.time).toDateString();
+        if (currentDate !== lastMessageDate) {
+            let div = document.createElement("div"); div.className = "date-divider"; div.innerText = getDateLabel(d.time);
+            chat.appendChild(div); lastMessageDate = currentDate;
+        }
+        let div = document.createElement("div");
+        div.className = "msg " + (d.name === profile.name ? "me" : "other"); div.dataset.key = key;
+        div.innerHTML = `
+            <img class="avatar" src="${d.avatar}">
+            <div class="bubble">
+                <div style="font-weight:bold; font-size:11px; margin-bottom:2px; opacity:0.8">${d.name}</div>
+                ${d.image ? `<img src="${d.image}" class="chat-img" onclick="window.open('${d.image}')">` : `<span class="text-content">${d.text}</span>`}
+                <div class="meta">${new Date(d.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ${d.edited ? '<span class="edited-label">(edited)</span>' : ''}</div>
+            </div>`;
+        if (d.name === profile.name) addLongPress(div, key, d.text);
+        chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+    });
 
-window.updateProfile=()=>{
-let newName=editName.value||profile.name;
-let file=editAvatar.files[0];
+    function addLongPress(el, key, text) {
+        let timer;
+        const start = () => timer = setTimeout(() => { activeKey = key; activeText = text; messageMenu.style.display = "flex"; messageMenu.style.top = "50%"; messageMenu.style.left = "50%"; messageMenu.style.transform = "translate(-50%, -50%)"; }, 600);
+        el.onmousedown = el.ontouchstart = start; el.onmouseup = el.ontouchend = () => clearTimeout(timer);
+    }
 
-if(file){
-let r=new FileReader();
-r.onload=e=>{
-profile={name:newName,avatar:e.target.result};
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
-};
-r.readAsDataURL(file);
-}else{
-profile.name=newName;
-localStorage.setItem("chatlyProfile",JSON.stringify(profile));
-location.reload();
-}
-};
-
-/* TIME FORMAT */
-function formatTime(t){
-let d=new Date(t);
-let h=d.getHours();
-let m=d.getMinutes();
-if(m<10)m="0"+m;
-return h+":"+m;
-}
-
-/* SEND */
-window.send=()=>{
-let text=msg.value.trim();
-if(!text)return;
-
-push(ref(db,"msgs"),{
-name:profile.name,
-avatar:profile.avatar,
-text,
-time:Date.now()
-});
-
-msg.value="";
-};
-
-/* LOAD MESSAGES */
-const msgQuery=query(ref(db,"msgs"),orderByChild("time"));
-
-onChildAdded(msgQuery,snap=>{
-let d=snap.val();
-
-let div=document.createElement("div");
-div.className="msg "+(d.name===profile.name?"me":"other");
-
-div.innerHTML=`
-<img class="avatar" src="${d.avatar}">
-<div class="bubble">
-<b>${d.name}</b><br>
-${d.text}
-<div class="meta">${formatTime(d.time)}</div>
-</div>
-`;
-
-chat.appendChild(div);
-chat.scrollTop=chat.scrollHeight;
-});
+    window.closeMenu = () => messageMenu.style.display = "none";
+    window.handleDelete = () => { if(confirm("Delete?")) update(ref(db, "msgs/"+activeKey), null); closeMenu(); };
+    window.handleEdit = () => { let t = prompt("Edit:", activeText); if(t && t !== activeText) update(ref(db, "msgs/"+activeKey), {text: t, edited: true}); closeMenu(); };
+    onChildChanged(ref(db, "msgs"), () => location.reload());
+    onChildRemoved(ref(db, "msgs"), snap => document.querySelector(`[data-key="${snap.key}"]`)?.remove());
 </script>
-
 </body>
 </html>
